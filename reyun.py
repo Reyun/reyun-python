@@ -208,7 +208,7 @@ class API(object):
 			who:用户ID.
 			id:任务的id.
 			state:任务状态，接受:a； 完成:c
-			type:任务类型.
+			type:任务类型.main：主线任务，new:主线，sub支线
 			serverid:服务器编号.
 			channelid:渠道编号.
 			level:用户等级.
