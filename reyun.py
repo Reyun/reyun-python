@@ -184,7 +184,7 @@ class API(object):
 			name:用户虚拟交易对象的名称.			
 			num:用户在此次虚拟交易中的，交易的物品的数量.
 			totalprice:用户此次虚拟交易过程中的交易额.	
-			type:用户此次虚拟交易的类型,系统产出:SP 购买获得:BP 消费:C .		
+			type:用户此次虚拟交易的类型,系统产出:sp 购买获得:bp 消费:c .		
 			serverid:服务器编号. 				
 			channelid:渠道编号.
 			level:用户等级.
