@@ -17,6 +17,9 @@ _UNKNOWN_ = 'unknown'
 class API(object):
 	def __init__(self,appid):
 		self._appid=appid
+		self.profile = {'tz':'+8','devicetype':_UNKNOWN_,'deviceid':_UNKNOWN_, \
+					'channelid':_UNKNOWN_,'op':_UNKNOWN_,'network':_UNKNOWN_,\
+					'os':_UNKNOWN_,'resolution':_UNKNOWN_}		
 
 	def _http_call(self,method):
 		postdata = {}
@@ -26,7 +29,6 @@ class API(object):
 		postdata['what'] = self.profile.get('what',method)
 		postdata['where'] = self.profile.get('what',method)
 
-		self.profile['tz'] = '+8'
 		self.profile = dict((key,str(value)) for key, value in self.profile.iteritems() if key not in postdata.keys())
 
 		postdata['context'] = chr(2).join([chr(1).join(x) for x in self.profile.items()])
