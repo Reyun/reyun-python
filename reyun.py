@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-__version__ = '0.0.2'
+__version__ = '0.0.3'
 __author__ = 'Sylar (jiangzhenxing@reyun.com)'
 '''
 Reyun SDK for Python
@@ -65,11 +65,12 @@ class API(object):
 		self.profile['channelid'] = channelid
 		self._http_call('install')
 
-	def reged(self,who,serverid=_UNKNOWN_,channelid=_UNKNOWN_,gender='o'):
+	def reged(self,who,accountType=_UNKNOWN_,serverid=_UNKNOWN_,channelid=_UNKNOWN_,gender='o'):
 		"""用户注册账户报送接口。
 
 		Args:
 			who:用户ID.
+			accountType:账户类型.
 			serverid:服务器编号. 
 			channelid:渠道编号.
 			gender:f 代表女，m 代表男，o 代表其它.			
@@ -90,7 +91,7 @@ class API(object):
 
 
 	def loggedin(self,who,serverid=_UNKNOWN_,channelid=_UNKNOWN_,level=_UNKNOWN_,\
-				birthday=_UNKNOWN_,gender='o'):
+				age=-1,gender=_UNKNOWN_):
 		"""用户登陆报送接口。
 
 		Args:
@@ -98,14 +99,14 @@ class API(object):
 			serverid:服务器编号. 			
 			channelid:渠道编号.
 			level:用户等级.
-			birthday:2013-10-10.
+			age: 年龄.
 			gender:f 代表女，m 代表男，o 代表其它.
 		"""		
 		self.profile['who'] = who
 		self.profile['serverid'] = serverid
 		self.profile['channelid'] = channelid
 		self.profile['level'] = level
-		self.profile['birthday'] = birthday
+		self.profile['age'] = age
 		self.profile['gender'] = gender
 		self._http_call('loggedin')
 
@@ -121,25 +122,6 @@ class API(object):
 		self.profile['serverid'] = serverid
 		self.profile['channelid'] = channelid		
 		self._http_call('hb')
-
-	def session(self,who,sst,set,stt,serverid=_UNKNOWN_,channelid=_UNKNOWN_,):
-		"""用户游戏时常报送接口。
-
-		Args:
-			who:用户ID.
-			sst:开始时间，格式2013-10-10 15:43:22
-			set:结束时间，格式2013-10-10 16:22:01
-			stt:持续时常(xset-sst)单位秒			
-			serverid:服务器编号. 	
-			channelid:渠道编号.							
-		"""	
-		self.profile['who'] = who
-		self.profile['sst'] = sst
-		self.profile['set'] = set
-		self.profile['stt'] = stt		
-		self.profile['serverid'] = serverid
-		self.profile['channelid'] = channelid		
-		self._http_call('session')
 
 	def event(self,who,what,serverid=_UNKNOWN_,channelid=_UNKNOWN_,extra={}):
 		"""自定义事件/多维分析报送接口。
@@ -158,44 +140,58 @@ class API(object):
 		self.profile.update(extra.items())
 		self._http_call('event')
 
-	def payment(self,who,amount,serverid=_UNKNOWN_,channelid=_UNKNOWN_,level='-1',birthday=_UNKNOWN_,\
-				gender='o'):
+	def payment(self,who,transactionId,paymentType,currencyType,currencyAmount,virtualCoinAmount,\
+				iapName,iapAmount,serverid=_UNKNOWN_,channelid=_UNKNOWN_,level=-1,age=-1,gender=_UNKNOWN_):
 		"""用户充值报送接口。
 		Args:
 			who:用户ID.
+			transactionId:交易的流水号.
+			paymentType:支付类型，例如支付宝，银联，苹果、谷歌官方等;
+						如果是系统赠送的，paymentType为：FREE.
+			currencyType:货币类型，按照国际标准组织ISO 4217中规范的3位字母，例如CNY人民币、USD美金等，
+							详情,http://zh.wikipedia.org/wiki/ISO_4217.
+			currencyAmount:支付的真实货币的金额.
+			virtualCoinAmount:通过充值获得的游戏内货币的数量.
+			iapName:游戏内购买道具的名称.
+			iapAmount:游戏内购买道具的数量.
 			serverid:服务器编号. 				
 			channelid:渠道编号.
 			level:用户等级.
-			birthday:2013-10-10.
+			age:年龄.
 			gender:f 代表女，m 代表男，o 代表其它.
-			amount:用户成功充值，充值的金额
 		"""					
 		self.profile['who'] = who
-		self.profile['amount'] = amount		
+		self.profile['transactionId'] = transactionId
+		self.profile['paymentType'] = paymentType		
+		self.profile['currencyType'] = currencyType		
+
+		self.profile['currencyAmount'] = currencyAmount		
+		self.profile['virtualCoinAmount'] = virtualCoinAmount
+		self.profile['iapName'] = iapName
+		self.profile['iapAmount'] = iapAmount
+
 		self.profile['serverid'] = serverid
 		self.profile['channelid'] = channelid		
 		self.profile['level'] = level
-		self.profile['birthday'] = birthday
+		self.profile['age'] = age
 		self.profile['gender'] = gender	
 		self._http_call('payment')
 
-	def economy(self,who,name,num,totalprice,type,serverid=_UNKNOWN_,channelid=_UNKNOWN_,level='-1'):
+	def economy(self,who,itemName,itemAmount,itemTotalPrice,serverid=_UNKNOWN_,channelid=_UNKNOWN_,level=-1):
 		"""经济相关报送接口。
 		Args:
 			who:用户ID.
-			name:用户虚拟交易对象的名称.			
-			num:用户在此次虚拟交易中的，交易的物品的数量.
-			totalprice:用户此次虚拟交易过程中的交易额.	
-			type:用户此次虚拟交易的类型,系统产出:sp 购买获得:bp 消费:c .		
+			itemName:用户虚拟交易对象的名称.			
+			itemAmount:用户在此次虚拟交易中的，交易的物品的数量.
+			itemTotalPrice:用户此次虚拟交易过程中的交易额.	
 			serverid:服务器编号. 				
 			channelid:渠道编号.
 			level:用户等级.
 		"""		
 		self.profile['who'] = who
-		self.profile['name'] = name	
-		self.profile['num'] = num
-		self.profile['totalprice'] = totalprice	
-		self.profile['type'] = type		
+		self.profile['itemName'] = itemName	
+		self.profile['itemAmount'] = itemAmount
+		self.profile['itemTotalPrice'] = itemTotalPrice	
 		self.profile['serverid'] = serverid
 		self.profile['channelid'] = channelid	
 		self.profile['level'] = level
@@ -204,21 +200,21 @@ class API(object):
 	'''
 		
 	'''
-	def task(self,who,id,state,type,serverid=_UNKNOWN_,channelid=_UNKNOWN_,level='-1'):
+	def quest(self,who,questId,questStatus,questType,serverid=_UNKNOWN_,channelid=_UNKNOWN_,level='-1'):
 		"""任务相关报送接口。
 		Args:
 			who:用户ID.
-			id:任务的id.
-			state:任务状态，接受:a； 完成:c
-			type:任务类型.main：主线任务，new:主线，sub支线
+			questId:任务的id.
+			questStatus:任务状态，接受:a； 完成:c； 失败:f
+			questType:任务类型.main：主线任务，new:主线，sub支线
 			serverid:服务器编号.
 			channelid:渠道编号.
 			level:用户等级.
 		"""	
 		self.profile['who'] = who
-		self.profile['id'] = id
-		self.profile['state'] = state	
-		self.profile['type'] = type		
+		self.profile['questId'] = questId
+		self.profile['questStatus'] = questStatus	
+		self.profile['questType'] = questType		
 		self.profile['serverid'] = serverid
 		self.profile['channelid'] = channelid		
 		self.profile['level'] = level
@@ -238,13 +234,12 @@ if __name__=='__main__':
 	
 	api.install(channelid=channelid)
 	api.startup(channelid=channelid)
-	api.reged(who,serverid=serverid,channelid=channelid)
+	api.reged(who,accountType="qq",serverid=serverid,channelid=channelid)
 	api.loggedin(who,serverid=serverid,channelid=channelid)
 	api.heartbeat(who,serverid=serverid,channelid=channelid)
-	api.session(who,sst='2013-10-10 15:43:22',set='2013-10-10 16:22:01',stt=1024,serverid=serverid,channelid=channelid)	
 	api.event(who,serverid=serverid,channelid=channelid,what='test',extra={'level':99,'drop':10})
-	api.payment(who,serverid=serverid,channelid=channelid,amount=10,level=2,gender='m',birthday='2001-10-10')
-	api.economy(who,serverid=serverid,channelid=channelid,level=3,num=10,name="xxx",totalprice=1000,type='bp')
-	api.task(who,serverid=serverid,channelid=channelid,level=3,id="xxx",state='a',type='1')
-
+	api.payment(who,transactionId="0000001",paymentType="IAP",currencyType='CNY',currencyAmount=100,\
+				virtualCoinAmount=10000,iapName="keys",iapAmount=1,serverid=_UNKNOWN_,channelid=_UNKNOWN_,level=7,age=21,gender='o')
+	api.economy(who,serverid=serverid,channelid=channelid,level=3,itemAmount=10,itemName="xxx",itemTotalPrice=1000)
+	api.quest(who,serverid=serverid,channelid=channelid,level=3,questId="xxx",questStatus='a',questType='main')
 
