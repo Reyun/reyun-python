@@ -17,7 +17,7 @@ _UNKNOWN_ = 'unknown'
 class API(object):
 	def __init__(self,appid):
 		self._appid=appid
-		self.profile = {'tz':'+8','devicetype':_UNKNOWN_,'deviceid':_UNKNOWN_, \
+		self._profile = {'tz':'+8','devicetype':_UNKNOWN_,'deviceid':_UNKNOWN_, \
 					'channelid':_UNKNOWN_,'op':_UNKNOWN_,'network':_UNKNOWN_,\
 					'os':_UNKNOWN_,'resolution':_UNKNOWN_}		
 
@@ -25,13 +25,13 @@ class API(object):
 		postdata = {}
 		postdata['appid'] = self._appid
 		postdata['when'] = time.strftime('%Y-%m-%d %X',time.localtime(time.time()))
-		postdata['who'] = self.profile.get('who',_UNKNOWN_)
-		postdata['what'] = self.profile.get('what',method)
-		postdata['where'] = self.profile.get('what',method)
+		postdata['who'] = self._profile.get('who',_UNKNOWN_)
+		postdata['what'] = self._profile.get('what',method)
+		postdata['where'] = self._profile.get('what',method)
 
-		self.profile = dict((key,str(value)) for key, value in self.profile.iteritems() if key not in postdata.keys())
+		self._profile = dict((key,str(value)) for key, value in self._profile.iteritems() if key not in postdata.keys())
 
-		postdata['context'] = chr(2).join([chr(1).join(x) for x in self.profile.items()])
+		postdata['context'] = chr(2).join([chr(1).join(x) for x in self._profile.items()])
 
 		req = urllib2.Request(_ENDPOINT_, urllib.urlencode(postdata))
 		rsp = urllib2.urlopen(req)
@@ -52,7 +52,7 @@ class API(object):
 			resolution:分辨率.
 		"""
 
-		self.profile = {'tz':tz,'devicetype':devicetype,'deviceid':deviceid, \
+		self._profile = {'tz':tz,'devicetype':devicetype,'deviceid':deviceid, \
 					'channelid':channelid,'op':op,'network':network,\
 					'os':os,'resolution':resolution}
 
@@ -62,7 +62,7 @@ class API(object):
 		Args:
 			channelid:渠道编号. 
 		"""		
-		self.profile['channelid'] = channelid
+		self._profile['channelid'] = channelid
 		self._http_call('install')
 
 	def reged(self,who,accountType=_UNKNOWN_,serverid=_UNKNOWN_,channelid=_UNKNOWN_,gender='o'):
@@ -75,9 +75,9 @@ class API(object):
 			channelid:渠道编号.
 			gender:f 代表女，m 代表男，o 代表其它.			
 		"""		
-		self.profile['who'] = who
-		self.profile['serverid'] = serverid
-		self.profile['channelid'] = channelid
+		self._profile['who'] = who
+		self._profile['serverid'] = serverid
+		self._profile['channelid'] = channelid
 		self._http_call('reged')
 
 	def startup(self,channelid=_UNKNOWN_):
@@ -86,7 +86,7 @@ class API(object):
 		Args:
 			channelid:渠道编号.
 		"""	
-		self.profile['channelid'] = channelid
+		self._profile['channelid'] = channelid
 		self._http_call('startup')
 
 
@@ -102,12 +102,12 @@ class API(object):
 			age: 年龄.
 			gender:f 代表女，m 代表男，o 代表其它.
 		"""		
-		self.profile['who'] = who
-		self.profile['serverid'] = serverid
-		self.profile['channelid'] = channelid
-		self.profile['level'] = level
-		self.profile['age'] = age
-		self.profile['gender'] = gender
+		self._profile['who'] = who
+		self._profile['serverid'] = serverid
+		self._profile['channelid'] = channelid
+		self._profile['level'] = level
+		self._profile['age'] = age
+		self._profile['gender'] = gender
 		self._http_call('loggedin')
 
 	def heartbeat(self,who,serverid=_UNKNOWN_,channelid=_UNKNOWN_):
@@ -118,9 +118,9 @@ class API(object):
 			serverid:服务器编号. 		
 			channelid:渠道编号.				
 		"""				
-		self.profile['who'] = who
-		self.profile['serverid'] = serverid
-		self.profile['channelid'] = channelid		
+		self._profile['who'] = who
+		self._profile['serverid'] = serverid
+		self._profile['channelid'] = channelid		
 		self._http_call('hb')
 
 	def event(self,who,what,serverid=_UNKNOWN_,channelid=_UNKNOWN_,extra={}):
@@ -132,12 +132,12 @@ class API(object):
 			channelid:渠道编号.
 			extra:自定义事件属性
 		"""				
-		self.profile = {}
-		self.profile['who'] = who
-		self.profile['what'] = what
-		self.profile['serverid'] = serverid
-		self.profile['channelid'] = channelid
-		self.profile.update(extra.items())
+		self._profile = {}
+		self._profile['who'] = who
+		self._profile['what'] = what
+		self._profile['serverid'] = serverid
+		self._profile['channelid'] = channelid
+		self._profile.update(extra.items())
 		self._http_call('event')
 
 	def payment(self,who,transactionId,paymentType,currencyType,currencyAmount,virtualCoinAmount,\
@@ -160,21 +160,21 @@ class API(object):
 			age:年龄.
 			gender:f 代表女，m 代表男，o 代表其它.
 		"""					
-		self.profile['who'] = who
-		self.profile['transactionId'] = transactionId
-		self.profile['paymentType'] = paymentType		
-		self.profile['currencyType'] = currencyType		
+		self._profile['who'] = who
+		self._profile['transactionId'] = transactionId
+		self._profile['paymentType'] = paymentType		
+		self._profile['currencyType'] = currencyType		
 
-		self.profile['currencyAmount'] = currencyAmount		
-		self.profile['virtualCoinAmount'] = virtualCoinAmount
-		self.profile['iapName'] = iapName
-		self.profile['iapAmount'] = iapAmount
+		self._profile['currencyAmount'] = currencyAmount		
+		self._profile['virtualCoinAmount'] = virtualCoinAmount
+		self._profile['iapName'] = iapName
+		self._profile['iapAmount'] = iapAmount
 
-		self.profile['serverid'] = serverid
-		self.profile['channelid'] = channelid		
-		self.profile['level'] = level
-		self.profile['age'] = age
-		self.profile['gender'] = gender	
+		self._profile['serverid'] = serverid
+		self._profile['channelid'] = channelid		
+		self._profile['level'] = level
+		self._profile['age'] = age
+		self._profile['gender'] = gender	
 		self._http_call('payment')
 
 	def economy(self,who,itemName,itemAmount,itemTotalPrice,serverid=_UNKNOWN_,channelid=_UNKNOWN_,level=-1):
@@ -188,13 +188,13 @@ class API(object):
 			channelid:渠道编号.
 			level:用户等级.
 		"""		
-		self.profile['who'] = who
-		self.profile['itemName'] = itemName	
-		self.profile['itemAmount'] = itemAmount
-		self.profile['itemTotalPrice'] = itemTotalPrice	
-		self.profile['serverid'] = serverid
-		self.profile['channelid'] = channelid	
-		self.profile['level'] = level
+		self._profile['who'] = who
+		self._profile['itemName'] = itemName	
+		self._profile['itemAmount'] = itemAmount
+		self._profile['itemTotalPrice'] = itemTotalPrice	
+		self._profile['serverid'] = serverid
+		self._profile['channelid'] = channelid	
+		self._profile['level'] = level
 		self._http_call('economy')
 
 	'''
@@ -211,13 +211,13 @@ class API(object):
 			channelid:渠道编号.
 			level:用户等级.
 		"""	
-		self.profile['who'] = who
-		self.profile['questId'] = questId
-		self.profile['questStatus'] = questStatus	
-		self.profile['questType'] = questType		
-		self.profile['serverid'] = serverid
-		self.profile['channelid'] = channelid		
-		self.profile['level'] = level
+		self._profile['who'] = who
+		self._profile['questId'] = questId
+		self._profile['questStatus'] = questStatus	
+		self._profile['questType'] = questType		
+		self._profile['serverid'] = serverid
+		self._profile['channelid'] = channelid		
+		self._profile['level'] = level
 		self._http_call('task')					
 
 
@@ -226,11 +226,10 @@ if __name__=='__main__':
 	serverid = '测试一服'
 	channelid = 'appstore'
 	api = API("appkey")
-
+	
 	#设置设备基础
 	api.profile(tz='+8',devicetype='Galaxy Nexus',deviceid='123123', \
-					op='cmcc',network='WIFI',\
-					os='android 4.4',resolution='480*320')
+					op='cmcc',network='WIFI',os='android 4.4',resolution='480*320')
 	
 	api.install(channelid=channelid)
 	api.startup(channelid=channelid)
