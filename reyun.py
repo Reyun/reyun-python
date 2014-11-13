@@ -7,38 +7,84 @@ __author__ = 'Sylar (jiangzhenxing@reyun.com)'
 Reyun SDK for Python
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 '''
-import logging,time,urllib,urllib2,json
+import logging,time,json
+import urllib,urllib2
+import threading,Queue
 logging.basicConfig(level = logging.DEBUG,format = '%(asctime)s - %(levelname)s: %(message)s')  
 
-# _ENDPOINT_ = 'http://log.tai-win.com.tw/receive/rest/'	#taiwan
 # _ENDPOINT_ = 'http://log.reyun.com/receive/rest/'			#reyun
-_ENDPOINT_ = 'http://127.0.0.1:8080/receive/rest/'
+_ENDPOINT_ = 'http://192.168.2.25:8080/receive/rest/'
 _UNKNOWN_ = 'unknown'
+_BUFFER_NAME_ = 'reyun-buffer'
+
+def _http_call(appid,method,data):
+	postdata = {}
+	postdata['appid'] = appid
+	postdata['when'] = time.strftime('%Y-%m-%d %X',time.localtime(time.time()))
+	postdata['who'] = data.get('who',_UNKNOWN_)
+	postdata['what'] = data.get('what',method)
+	postdata['where'] = data.get('what',method)
+
+	data = dict((key,str(value)) for key, value in data.iteritems() if key not in postdata.keys())
+
+	postdata['context'] = data
+	logging.debug(_ENDPOINT_+method)
+	logging.debug(json.dumps(postdata))
+
+	req = urllib2.Request(_ENDPOINT_+method, json.dumps(postdata))		
+	req.add_header('Content-Type', 'application/json')
+	rsp = urllib2.urlopen(req)
+
+
+	logging.debug('%s[%s]%s' % (method,rsp.getcode(),rsp.read()))       
+
+class Consumer(threading.Thread): 
+	def __init__(self,appid, queue): 
+		threading.Thread.__init__(self)
+		self._appid = appid
+		self._queue = queue 
+
+
+	def run(self):
+		while True: 
+			if self._queue:
+				msg = self._queue.blpop(_BUFFER_NAME_)[1]
+				data =  eval(msg)
+				_http_call(self._appid,data['method'],data['data'])
+
+
+
+class Producer():
+	def __init__(self,appid,queue=None):
+		self._appid=appid
+		self._queue=queue
+
+	def produce(self,method,data):
+		del data['self']
+		if self._queue:
+			self._queue.rpush(_BUFFER_NAME_,{'method':method,'data':data})
+		else:
+			_http_call(self._appid,method,data)
 
 class API(object):
-	def __init__(self,appid):
+	def __init__(self,appid,buffer=False,host='localhost',port=6379,db=0):
 		self._appid=appid
+		self._queue = None
+		self.buffer = buffer
+		if buffer:
+			import redis
+			self._queue = redis.StrictRedis(host,port,db)
+		self._consumer = Consumer(appid,self._queue)
+		self._producer = Producer(appid,self._queue)
 
-	def _http_call(self,method):
-		postdata = {}
-		postdata['appid'] = self._appid
-		postdata['when'] = time.strftime('%Y-%m-%d %X',time.localtime(time.time()))
-		postdata['who'] = self._profile.get('who',_UNKNOWN_)
-		postdata['what'] = self._profile.get('what',method)
-		postdata['where'] = self._profile.get('what',method)
+	def start(self):
+		print self.buffer
+		if self.buffer:
+			self._consumer.start()
+		else:
+			logging.debug("buffer is not ture,the Consumer buffer will not work")      			
+		
 
-		self._profile = dict((key,str(value)) for key, value in self._profile.iteritems() if key not in postdata.keys())
-
-		postdata['context'] = self._profile
-		logging.debug(_ENDPOINT_+method)
-		logging.debug(json.dumps(postdata))
-
-		req = urllib2.Request(_ENDPOINT_+method, json.dumps(postdata))		
-		req.add_header('Content-Type', 'application/json')
-		rsp = urllib2.urlopen(req)
-
-
-		logging.debug('%s[%s]%s' % (method,rsp.getcode(),rsp.read())) 
 
 	def install(self,deviceid,channelid=_UNKNOWN_,serverid=_UNKNOWN_):
 		"""软件安装报送接口。
@@ -49,11 +95,7 @@ class API(object):
 			channelid:渠道编号. 
 
 		"""		
-		self._profile={}
-		self._profile['deviceid'] = deviceid
-		self._profile['serverid'] = serverid				
-		self._profile['channelid'] = channelid
-		self._http_call('install')
+		self._producer.produce('install',locals())
 
 	def startup(self,deviceid,serverid=_UNKNOWN_,channelid=_UNKNOWN_,tz="+8",devicetype=_UNKNOWN_,op=_UNKNOWN_\
 		,network=_UNKNOWN_,os=_UNKNOWN_,resolution=_UNKNOWN_):
@@ -70,18 +112,7 @@ class API(object):
 			os:操作系统.
 			resolution:分辨率.			
 		"""	
-		self._profile={}
-		self._profile['deviceid'] = deviceid		
-		self._profile['serverid'] = serverid		
-		self._profile['channelid'] = channelid
-		self._profile['tz'] = tz
-		self._profile['devicetype'] = devicetype
-		self._profile['op'] = op
-		self._profile['network'] = network
-		self._profile['os'] = os
-		self._profile['resolution'] = resolution
-
-		self._http_call('startup')
+		self._producer.produce('startup',locals())
 
 	def register(self,deviceid,who,serverid=_UNKNOWN_,channelid=_UNKNOWN_,accountType=_UNKNOWN_,\
 		gender=_UNKNOWN_,age=-1):
@@ -96,16 +127,7 @@ class API(object):
 			gender:f 代表女，m 代表男，o 代表其它.		
 			age:年龄	
 		"""		
-		self._profile={}
-		self._profile['deviceid'] = deviceid
-		self._profile['who'] = who
-		self._profile['serverid'] = serverid		
-		self._profile['channelid'] = channelid		
-		self._profile['accountType'] = accountType
-		self._profile['gender'] = gender
-		self._profile['age'] = age
-
-		self._http_call('register')
+		self._producer.produce('register',locals())
 
 
 
@@ -119,13 +141,7 @@ class API(object):
 			channelid:渠道编号. 
 			level:用户等级.
 		"""		
-		self._profile={}
-		self._profile['deviceid'] = deviceid
-		self._profile['who'] = who
-		self._profile['serverid'] = serverid
-		self._profile['channelid'] = channelid
-		self._profile['level'] = level
-		self._http_call('loggedin')
+		self._producer.produce('loggedin',locals())
 
 
 	def payment(self,deviceid,who,transactionId,paymentType,currencyType,currencyAmount,virtualCoinAmount,\
@@ -147,25 +163,7 @@ class API(object):
 			channelid:渠道编号.			
 			level:用户等级.
 		"""				
-		self._profile={}
-		self._profile['deviceid'] = deviceid
-		self._profile['who'] = who
-
-		self._profile['transactionId'] = transactionId
-		self._profile['paymentType'] = paymentType		
-		self._profile['currencyType'] = currencyType		
-		self._profile['currencyAmount'] = currencyAmount		
-		self._profile['virtualCoinAmount'] = virtualCoinAmount
-		self._profile['iapName'] = iapName
-		self._profile['iapAmount'] = iapAmount
-
-		self._profile['serverid'] = serverid
-		self._profile['channelid'] = channelid		
-		self._profile['level'] = level
-
-		self._http_call('payment')
-
-
+		self._producer.produce('payment',locals())
 
 
 	def economy(self,deviceid,who,itemName,itemAmount,itemTotalPrice,serverid=_UNKNOWN_,channelid=_UNKNOWN_,level=-1):
@@ -180,17 +178,7 @@ class API(object):
 			channelid:渠道编号.									
 			level:用户等级.
 		"""		
-		self._profile={}
-		self._profile['deviceid'] = deviceid
-		self._profile['who'] = who
-		self._profile['itemName'] = itemName	
-		self._profile['itemAmount'] = itemAmount
-		self._profile['itemTotalPrice'] = itemTotalPrice	
-		self._profile['serverid'] = serverid				
-		self._profile['channelid'] = channelid	
-		self._profile['level'] = level
-		self._http_call('economy')
-
+		self._producer.produce('economy',locals())
 
 
 	def quest(self,deviceid,who,questId,questStatus,questType,serverid=_UNKNOWN_,channelid=_UNKNOWN_,level=-1):
@@ -205,16 +193,7 @@ class API(object):
 			channelid:渠道编号.			
 			level:用户等级.
 		"""	
-		self._profile={}
-		self._profile['deviceid'] = deviceid		
-		self._profile['who'] = who
-		self._profile['questId'] = questId
-		self._profile['questStatus'] = questStatus	
-		self._profile['questType'] = questType		
-		self._profile['serverid'] = serverid		
-		self._profile['channelid'] = channelid		
-		self._profile['level'] = level
-		self._http_call('quest')					
+		self._producer.produce('quest',locals())					
 
 	def event(self,deviceid,who,what,serverid=_UNKNOWN_,channelid=_UNKNOWN_,extra={}):
 		"""自定义事件/多维分析报送接口。
@@ -226,14 +205,7 @@ class API(object):
 			channelid:渠道编号.
 			extra:自定义事件属性
 		"""		
-		self._profile={}		
-		self._profile['deviceid'] = deviceid				
-		self._profile['who'] = who
-		self._profile['what'] = what
-		self._profile['serverid'] = serverid
-		self._profile['channelid'] = channelid				
-		self._profile.update(extra.items())
-		self._http_call('event')
+		self._producer.produce('event',locals())
 
 	def heartbeat(self,deviceid,who,serverid=_UNKNOWN_,channelid=_UNKNOWN_,level=-1):
 		"""用户心跳报送接口。
@@ -245,33 +217,32 @@ class API(object):
 			channelid:渠道编号.	
 			level:用户等级			
 		"""				
-		self._profile={}
-		self._profile['deviceid'] = deviceid						
-		self._profile['who'] = who
-		self._profile['serverid'] = serverid
-		self._profile['channelid'] = channelid		
-		self._profile['level'] = level
-		self._http_call('heartbeat')
-
-
+		self._producer.produce('heartbeat',locals())
 
 
 if __name__=='__main__':
+
 	who = 'Sylar'
 	serverid = '测试一服'
 	channelid = 'appstore'
-	api = API("appkey")
+
+
+	api = API("appkey",buffer=False,host='x00',port=6379,db=0)
 	
 	api.install(deviceid="xxxxx",serverid=serverid,channelid=channelid)
-	api.startup(deviceid="xxxxx",serverid=serverid,channelid=channelid,tz="+8",devicetype="ios",\
-		op="cmcc",network="3g",os="ios",resolution="400*600")
-	api.register(deviceid="xxxxx",who=who,accountType="qq",serverid=serverid,channelid=channelid,gender="f",age=19)
-	api.loggedin(deviceid="xxxxx",who=who,serverid=serverid,channelid=channelid,level=11)
-	api.payment(deviceid="xxxxx",who=who,transactionId="0000001",paymentType="IAP",currencyType='CNY',currencyAmount=100,\
-				virtualCoinAmount=10000,iapName="keys",iapAmount=1,serverid=_UNKNOWN_,channelid=_UNKNOWN_,level=7)
-	api.economy(deviceid="xxxxx",who=who,serverid=serverid,channelid=channelid,level=3,itemAmount=10,itemName="xxx",itemTotalPrice=1000)
-	api.quest(deviceid="xxxxx",who=who,serverid=serverid,channelid=channelid,level=3,questId="xxx",questStatus='a',questType='main')
-	api.event(deviceid="xxxxx",who=who,serverid=serverid,channelid=channelid,what='test',extra={'deviceid':"xxxxxxx",'level':99,'drop':10})
-	api.heartbeat(deviceid="xxxxx",who=who,serverid=serverid,channelid=channelid)
+
+	# api.startup(deviceid="xxxxx",serverid=serverid,channelid=channelid,tz="+8",devicetype="ios",\
+	# 	op="cmcc",network="3g",os="ios",resolution="400*600")
+	# api.register(deviceid="xxxxx",who=who,accountType="qq",serverid=serverid,channelid=channelid,gender="f",age=19)
+	# api.loggedin(deviceid="xxxxx",who=who,serverid=serverid,channelid=channelid,level=11)
+	# api.payment(deviceid="xxxxx",who=who,transactionId="0000001",paymentType="IAP",currencyType='CNY',currencyAmount=100,\
+	# 			virtualCoinAmount=10000,iapName="keys",iapAmount=1,serverid=_UNKNOWN_,channelid=_UNKNOWN_,level=7)
+	# api.economy(deviceid="xxxxx",who=who,serverid=serverid,channelid=channelid,level=3,itemAmount=10,itemName="xxx",itemTotalPrice=1000)
+	# api.quest(deviceid="xxxxx",who=who,serverid=serverid,channelid=channelid,level=3,questId="xxx",questStatus='a',questType='main')
+	# api.event(deviceid="xxxxx",who=who,serverid=serverid,channelid=channelid,what='test',extra={'deviceid':"xxxxxxx",'level':99,'drop':10})
+	# api.heartbeat(deviceid="xxxxx",who=who,serverid=serverid,channelid=channelid)
+	
+	#如果buffer等于True，需要手动启动线程报送线程
+	api.start()
 
 
