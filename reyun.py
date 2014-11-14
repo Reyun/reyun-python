@@ -16,6 +16,7 @@ logging.basicConfig(level = logging.DEBUG,format = '%(asctime)s - %(levelname)s:
 _ENDPOINT_ = 'http://192.168.2.25:8080/receive/rest/'
 _UNKNOWN_ = 'unknown'
 _BUFFER_NAME_ = 'reyun-buffer'
+_RETRY_TIMES = 3
 
 def _http_call(appid,method,data):
 	postdata = {}
@@ -28,15 +29,29 @@ def _http_call(appid,method,data):
 	data = dict((key,str(value)) for key, value in data.iteritems() if key not in postdata.keys())
 
 	postdata['context'] = data
+	jsondata = json.dumps(postdata)
 	logging.debug(_ENDPOINT_+method)
-	logging.debug(json.dumps(postdata))
+	logging.debug(jsondata)
 
-	req = urllib2.Request(_ENDPOINT_+method, json.dumps(postdata))		
+	req = urllib2.Request(_ENDPOINT_+method, jsondata)		
 	req.add_header('Content-Type', 'application/json')
-	rsp = urllib2.urlopen(req)
+	rsp = None
+	try:
+		rsp = urllib2.urlopen(req)
+	except :
+		pass
 
+	status = 1
+	content = ''
 
-	logging.debug('%s[%s]%s' % (method,rsp.getcode(),rsp.read()))       
+	if rsp != None :
+		content = rsp.readlines()
+		status = json.loads(content[0])['status']
+		if status != 0:
+			logging.error('[args error]    %s    %s' % (jsondata,content))       
+	logging.debug('%s[%s]%s' % (method,status,content))       
+
+	return status
 
 class Consumer(threading.Thread): 
 	def __init__(self,appid, queue): 
@@ -50,9 +65,13 @@ class Consumer(threading.Thread):
 			if self._queue:
 				msg = self._queue.blpop(_BUFFER_NAME_)[1]
 				data =  eval(msg)
-				_http_call(self._appid,data['method'],data['data'])
-
-
+				if data['retry'] < _RETRY_TIMES:
+					data['retry'] += 1
+					status = _http_call(self._appid,data['method'],data['data'])
+					if status == 1:
+						self._queue.rpush(_BUFFER_NAME_,json.dumps(data))
+				else:
+					logging.error('[retry 3 times]    %s' % msg)  
 
 class Producer():
 	def __init__(self,appid,queue=None):
@@ -62,7 +81,7 @@ class Producer():
 	def produce(self,method,data):
 		del data['self']
 		if self._queue:
-			self._queue.rpush(_BUFFER_NAME_,{'method':method,'data':data})
+			self._queue.rpush(_BUFFER_NAME_,{'method':method,'data':data,'retry':0})
 		else:
 			_http_call(self._appid,method,data)
 
@@ -71,7 +90,7 @@ class API(object):
 		self._appid=appid
 		self._queue = None
 		self.buffer = buffer
-		if buffer:
+		if self.buffer:
 			import redis
 			self._queue = redis.StrictRedis(host,port,db)
 		self._consumer = Consumer(appid,self._queue)
@@ -227,9 +246,9 @@ if __name__=='__main__':
 	channelid = 'appstore'
 
 
-	api = API("appkey",buffer=False,host='x00',port=6379,db=0)
+	api = API("appkey",buffer=True,host='x00',port=6379,db=0)
 	
-	api.install(deviceid="xxxxx",serverid=serverid,channelid=channelid)
+	api.install(deviceid="xxxxxx",serverid=serverid,channelid=channelid)
 
 	# api.startup(deviceid="xxxxx",serverid=serverid,channelid=channelid,tz="+8",devicetype="ios",\
 	# 	op="cmcc",network="3g",os="ios",resolution="400*600")
